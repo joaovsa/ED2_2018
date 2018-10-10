@@ -5,8 +5,8 @@
  *
  * Trabalho 01
  *
- * RA:
- * Aluno:
+ * RA: 552585
+ * Aluno: João Vitor de Sá Medeiros Santos
  * ========================================================================== */
 
 /* Bibliotecas */
@@ -103,6 +103,7 @@ char ARQUIVO[TAM_ARQUIVO];
  * ========================= PROTÓTIPOS DAS FUNÇÕES =========================
  * ========================================================================== */
 
+	// ############################## BUILT-IN ##################################	
 /* Recebe do usuário uma string simulando o arquivo completo e retorna o número
  * de registros. */
 int carregar_arquivo();
@@ -122,6 +123,21 @@ void ler_entrada(char* registro, Produto *novo);
 
 /* Rotina para impressao de indice secundario */
 void imprimirSecundario(Is* iproduct, Is* ibrand, Ir* icategory, Isf *iprice, int nregistros, int ncat);
+
+// ############################## ADDED ##################################
+
+void set_icategory(Ir *icategory);
+
+void set_iproduct(Is *iproduct);
+
+void set_ibrand(Is *ibrand);
+
+void set_iprice(Isf *iprice);
+
+void imprimirDados(int nregistros);
+
+
+
 
 
 /* ==========================================================================
@@ -143,6 +159,19 @@ int main(){
 	criar_iprimary(iprimary, &nregistros);
 
 	/*Alocar e criar índices secundários*/
+	//TODO: verificar corretude das alocações
+	//No momento, tudo NULL
+	Is *iproduct = (Is *) malloc(MAX_REGISTROS * sizeof(Is)); 
+	Is *ibrand = (Is *) malloc(MAX_REGISTROS * sizeof(Is)); 
+	Isf *iprice = (Isf *) malloc(MAX_REGISTROS * sizeof(Isf));
+	//setar lista ligada
+	Ir *icategory = (Ir *) malloc(sizeof(Ir));;
+
+	//provavelmente mais um parametro sera adicionado: nregistros
+	set_icategory(icategory);
+	set_iproduct(iproduct);
+	set_ibrand(ibrand);
+	set_iprice(iprice);
 
 	/* Execução do programa */
 	int opcao = 0;
@@ -187,8 +216,8 @@ int main(){
 			break;
 			case 7:
 				/*imprime o arquivo de dados*/
-				printf(INICIO_ARQUIVO);
-				printf("%s\n", ARQUIVO);
+				imprimirDados(nregistros);
+				
 			break;
 			case 8:
 				/*imprime os índices secundários*/
@@ -281,7 +310,8 @@ Produto recuperar_registro(int rrn)
 	strcpy(j.desconto,p);
 	p = strtok(NULL,"@");
 	strcpy(j.categoria,p);
-	gerarChave(&j);
+	//remover comentário abaixo
+	//gerarChave(&j);
 	return j;
 }
 
@@ -322,5 +352,47 @@ void imprimirSecundario(Is* iproduct, Is* ibrand, Ir* icategory, Isf *iprice, in
 			printf("%s %.2f\n",iprice[i].pk, iprice[i].price);
 		}
 		break;
+	}
+}
+
+/* ==========================================================================
+ * ======================= IMPLEMENTAÇÕES DAS FUNÇÕES =======================
+ * ========================================================================== */
+
+
+// ############################## ÍNDICES ##################################	
+
+void criar_iprimary(Ip *indice_primario, int* nregistros){
+	
+	//tratar index
+	*nregistros  = 0;
+
+	return;
+}
+
+void set_icategory(Ir *icategory){
+	return;
+}
+
+void set_iproduct(Is *iproduct){
+	return;
+}
+
+void set_ibrand(Is *ibrand){
+	return;
+}
+
+void set_iprice(Isf *iprice){
+	return;
+}
+
+
+// ############################## OUTPUTS ##################################	
+void imprimirDados(int nregistros){
+	if(!nregistros)
+		printf(ARQUIVO_VAZIO);
+	else{
+		printf(INICIO_ARQUIVO);
+		printf("%s\n", ARQUIVO);	
 	}
 }
