@@ -136,7 +136,11 @@ void set_iprice(Isf *iprice);
 
 void imprimirDados(int nregistros);
 
+int read_product();
 
+void key_gen(Produto *new);
+
+int append_file(Produto *new);
 
 
 
@@ -182,6 +186,8 @@ int main(){
 		{
 			case 1:
 				/*cadastro*/
+				if(read_product())
+					nregistros++;
 			break;
 			case 2:
 				/*alterar desconto*/
@@ -396,3 +402,127 @@ void imprimirDados(int nregistros){
 		printf("%s\n", ARQUIVO);	
 	}
 }
+
+// ############################### INPUTS ##################################	
+
+int read_product(){
+
+//TODO: fazer função de gerar PK
+//TODO: validações
+//TODO: gravar no ARQUIVO
+// 	/* Registro do Produto */
+// typedef struct {
+// 	char pk[TAM_PRIMARY_KEY];
+// 	char nome[TAM_NOME];
+// 	char marca[TAM_MARCA];
+// 	char data[TAM_DATA];	/* DD/MM/AAAA */
+// 	char ano[TAM_ANO];
+// 	char preco[TAM_PRECO];
+// 	char desconto[TAM_DESCONTO];
+// 	char categoria[TAM_CATEGORIA];
+// } Produto;
+
+	
+	int rtn = 0;
+	Produto *new_product;
+	new_product = (Produto *) malloc(sizeof(Produto));
+
+	scanf("%[^\n]\n", new_product->nome);
+	scanf("%[^\n]\n", new_product->marca);
+	scanf("%[^\n]\n", new_product->data);
+	scanf("%[^\n]\n", new_product->ano);
+	scanf("%[^\n]\n", new_product->preco);
+	scanf("%[^\n]\n", new_product->desconto);
+	scanf("%[^\n]\n", new_product->categoria);
+
+	key_gen(new_product);
+	
+	rtn = append_file(new_product);
+	free(new_product);
+
+	return rtn;
+
+}
+
+// ############################### CONTROLS ##################################	
+
+void key_gen(Produto *new){
+	char *pk;
+	pk = (char *) malloc(TAM_PRIMARY_KEY * sizeof(char));
+
+	*(pk+0) = *(new->nome);
+	*(pk+1) = *(new->nome+1);
+	*(pk+2) = *(new->marca);
+	*(pk+3) = *(new->marca+1);
+	*(pk+4) = *(new->data);
+	*(pk+5) = *(new->data+1);
+	*(pk+6) = *(new->data+3);
+	*(pk+7) = *(new->data+4);
+	*(pk+8) = *(new->ano);
+	*(pk+9) = *(new->ano+1);
+	*(pk+10) = '\0';
+
+	strcpy(new->pk, pk);
+	free(pk);
+}
+
+/*escreve no final do pseudo arquivo*/
+int  append_file(Produto *new){
+	int size = 0;
+	int len = strlen(ARQUIVO);
+	char *eof = ARQUIVO + len;
+
+	//conta o tamanho do Produto new
+	size = strlen( new->nome ) + strlen( new->marca) + strlen( new->data) +
+		strlen( new->ano) + strlen( new-> preco) +
+		 strlen( new-> desconto) + strlen( new->categoria);
+
+	//nome
+	strncpy(eof, new->nome, len = strlen(new->nome));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+	//desenvolvedora
+	strncpy(eof, new->marca, len = strlen(new->marca));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+	//data
+	strncpy(eof, new->data, len = strlen(new->data));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+	//classificacao
+	strncpy(eof, new->ano, len = strlen(new->ano));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+	//preco
+	strncpy(eof,new->preco, len = strlen(new->preco));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+	//desconto
+	strncpy(eof, new->desconto, len = strlen(new->desconto));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+	//categoria
+	strncpy(eof, new->categoria, len = strlen(new->categoria));
+	eof = eof + len;
+	strncpy(eof, "@", 1);
+	eof++;
+
+	//fill with ####
+	size += 7; //@'s
+	while(size < 192 ){
+		strncpy(eof, "#", 1);
+		eof++;
+		size++;
+	}
+
+	return 1;
+}
+
+// ########################### VALIDATIONS ################################	
+
