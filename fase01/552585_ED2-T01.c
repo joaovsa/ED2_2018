@@ -32,6 +32,7 @@
 #define MAX_CATEGORIAS 	30
 #define TAM_ARQUIVO (MAX_REGISTROS * TAM_REGISTRO + 1)
 
+#define NULL_RRN -1
 
 /* Saídas para o usuario */
 #define OPCAO_INVALIDA 				"Opcao invalida!\n"
@@ -103,7 +104,7 @@ char ARQUIVO[TAM_ARQUIVO];
  * ========================= PROTÓTIPOS DAS FUNÇÕES =========================
  * ========================================================================== */
 
-	// ############################## BUILT-IN ##################################	
+// ############################## BUILT-IN ##################################	
 /* Recebe do usuário uma string simulando o arquivo completo e retorna o número
  * de registros. */
 int carregar_arquivo();
@@ -125,22 +126,35 @@ void ler_entrada(char* registro, Produto *novo);
 void imprimirSecundario(Is* iproduct, Is* ibrand, Ir* icategory, Isf *iprice, int nregistros, int ncat);
 
 // ############################## ADDED ##################################
+void insert_indexes(Produto *new_product, int nregistros, Ip *indice_primario, Ir *icategory, Is *iproduct, Is *ibrand, Isf *iprice);
 
-void set_icategory(Ir *icategory);
+void insert_iprimary(Ip *indice_primario, Produto* novo, int nregistros);
 
-void set_iproduct(Is *iproduct);
+void sort_iprimary(Ip* indice_primario, int nregistros);
 
-void set_ibrand(Is *ibrand);
+void set_icategory(Ir *icategory, int nregistros);
 
-void set_iprice(Isf *iprice);
+void set_iproduct(Is *iproduct, int nregistros);
+
+void insert_iproduct(Is *iproduct, Produto *novo, int nregistros);
+
+void sort_iproduct(Is* iproduct, int nregistros);
+
+void set_ibrand(Is *ibrand, int nregistros);
+
+void set_iprice(Isf *iprice, int nregistros);
 
 void imprimirDados(int nregistros);
 
-int read_product();
+int read_product(Produto* new_product, Ip* indice_primario, int nregistros);
 
 void key_gen(Produto *new);
 
 int append_file(Produto *new);
+
+int recuperar_rrn(Ip* iprimary, const char* pk, int nregistros);
+
+int cmpr_bypk(const void *a, const void *b);
 
 
 
@@ -149,6 +163,7 @@ int append_file(Produto *new);
  * =============================== NÃO ALTERAR ============================== */
 int main(){
   /* Arquivo */
+	Produto *new_product;
 	int carregarArquivo = 0, nregistros = 0, ncat = 0;
 	scanf("%d%*c", &carregarArquivo); /* 1 (sim) | 0 (nao) */
 	if (carregarArquivo)
@@ -172,10 +187,10 @@ int main(){
 	Ir *icategory = (Ir *) malloc(sizeof(Ir));;
 
 	//provavelmente mais um parametro sera adicionado: nregistros
-	set_icategory(icategory);
-	set_iproduct(iproduct);
-	set_ibrand(ibrand);
-	set_iprice(iprice);
+	set_iproduct(iproduct, nregistros);
+	set_ibrand(ibrand, nregistros);
+	set_iprice(iprice, nregistros);
+	set_icategory(icategory, nregistros);
 
 	/* Execução do programa */
 	int opcao = 0;
@@ -186,8 +201,17 @@ int main(){
 		{
 			case 1:
 				/*cadastro*/
-				if(read_product())
+				new_product = (Produto *) malloc(sizeof(Produto));
+				// if(nregistros == MAX_REGISTROS){
+				// 	printf(MEMORIA_INSUFICIENTE);
+				// }
+				// else 
+				if(read_product(new_product, iprimary, nregistros)){
 					nregistros++;
+					insert_indexes(new_product, nregistros, iprimary, icategory, iproduct, ibrand, iprice);
+				}
+				free(new_product);
+
 			break;
 			case 2:
 				/*alterar desconto*/
@@ -368,30 +392,126 @@ void imprimirSecundario(Is* iproduct, Is* ibrand, Ir* icategory, Isf *iprice, in
 
 // ############################## ÍNDICES ##################################	
 
+void insert_indexes(Produto *new_product, int nregistros, Ip *indice_primario, Ir *icategory, Is *iproduct, Is *ibrand, Isf *iprice){
+	//Controla inserção em todos arquivos de índice
+	insert_iprimary(indice_primario, new_product, nregistros);
+	insert_iproduct(iproduct, new_product, nregistros);
+}
+
 void criar_iprimary(Ip *indice_primario, int* nregistros){
+	int i, j;
+	Ip *atual = indice_primario;
+
+	//rotina de inicialização
+	for( i = 0; i < MAX_REGISTROS; i++){
+		//limpa PK
+		for(j = 0; j < TAM_PRIMARY_KEY; j++)
+			*((atual+i)->pk + j) = '\0';
+		//limpa rrn
+		(atual+i)->rrn = NULL_RRN; //convencionado
+	}
 	
-	//tratar index
 	*nregistros  = 0;
 
 	return;
 }
 
-void set_icategory(Ir *icategory){
+/*insere novo regitro no indice primario*/
+void insert_iprimary(Ip *indice_primario, Produto* novo, int nregistros){
+	// typedef struct primary_index{
+	//   char pk[TAM_PRIMARY_KEY];
+	//   int rrn;
+	// } Ip;
+
+	//ajusta o ponteiro para a posição vazia do indice
+	Ip* eof = indice_primario + (nregistros-1);
+
+	strncpy(eof->pk, novo->pk, strlen(novo->pk));
+	eof->rrn = nregistros;
+	sort_iprimary(indice_primario, nregistros);
+}
+
+
+/*organiza indice primario*/
+void sort_iprimary(Ip* indice_primario, int nregistros){
+	//quicksort?
+	int c, d;
+	Ip swap;
+	for (c = 0 ; c < ( nregistros - 1 ); c++){
+	    for (d = 0 ; d < nregistros - c - 1; d++){
+			if (strcmp((indice_primario+d)->pk,(indice_primario+d+1)->pk) > 0 ){
+			swap = *(indice_primario+d);
+				*(indice_primario+d) = *(indice_primario+d+1);
+			*(indice_primario+d+1) = swap;
+			}
+	    }
+  	}
+}
+
+void set_icategory(Ir *icategory, int nregistros){
 	return;
 }
 
-void set_iproduct(Is *iproduct){
+void set_iproduct(Is *iproduct, int nregistros){
+	int i, j;
+	Is *atual = iproduct;
+
+	if(!nregistros){
+		//rotina de inicialização
+		for( i = 0; i < MAX_REGISTROS; i++){
+			//limpa PK
+			for(j = 0; j < TAM_PRIMARY_KEY; j++)
+				*((atual+i)->pk + j) = '\0';
+			//limpa string
+			for(j = 0; j < TAM_NOME; j++)
+				*((atual+i)->string + j) = '\0'; 
+		}
+	} else {
+
+	}
 	return;
 }
 
-void set_ibrand(Is *ibrand){
+/*Insere ao final do indice secundario*/
+void insert_iproduct(Is  *iproduct, Produto *novo, int nregistros){
+	int i;
+	Is* eof = iproduct + (nregistros-1);
+	strncpy(eof->pk, novo->pk, strlen(novo->pk));
+	strncpy(eof->string, novo->nome, strlen(novo->nome));
+	sort_iproduct(iproduct, nregistros);
+}
+ 
+void sort_iproduct(Is* iproduct, int nregistros){
+	//quicksort 
+	int c, d;
+	Is swap;
+	for (c = 0 ; c < ( nregistros - 1 ); c++){
+	    for (d = 0 ; d < nregistros - c - 1; d++){
+			if (strcmp((iproduct+d)->string ,(iproduct+d+1)->string) > 0 ){
+				swap = *(iproduct+d);
+				*(iproduct+d) = *(iproduct+d+1);
+				*(iproduct+d+1) = swap;
+			}
+	    }
+  	}
+}
+
+void set_ibrand(Is *ibrand, int nregistros){
 	return;
 }
 
-void set_iprice(Isf *iprice){
+void set_iprice(Isf *iprice, int nregistros){
 	return;
 }
 
+/*Dada uma certa chave, retorna o rrn dela consultando o ip*/
+int recuperar_rrn(Ip* iprimary, const char* pk, int nregistros){
+	Ip* idx_encontrado;
+	idx_encontrado = bsearch(pk, iprimary, nregistros, sizeof(Ip), cmpr_bypk);
+	if(idx_encontrado == NULL)
+		return NULL_RRN;
+	return idx_encontrado->rrn;
+}
 
 // ############################## OUTPUTS ##################################	
 void imprimirDados(int nregistros){
@@ -405,7 +525,7 @@ void imprimirDados(int nregistros){
 
 // ############################### INPUTS ##################################	
 
-int read_product(){
+int read_product(Produto* new_product, Ip* indice_primario, int nregistros){
 
 //TODO: fazer função de gerar PK
 //TODO: validações
@@ -424,9 +544,6 @@ int read_product(){
 
 	
 	int rtn = 0;
-	Produto *new_product;
-	new_product = (Produto *) malloc(sizeof(Produto));
-
 	scanf("%[^\n]\n", new_product->nome);
 	scanf("%[^\n]\n", new_product->marca);
 	scanf("%[^\n]\n", new_product->data);
@@ -437,14 +554,23 @@ int read_product(){
 
 	key_gen(new_product);
 	
+	if(recuperar_rrn(indice_primario, new_product->pk, nregistros) != NULL_RRN){
+		printf(ERRO_PK_REPETIDA, new_product->pk);
+		return 0;
+	}
 	rtn = append_file(new_product);
-	free(new_product);
-
 	return rtn;
 
 }
 
 // ############################### CONTROLS ##################################	
+
+/*função padrão alterada para comparar no bsearch*/
+int cmpr_bypk(const void *a, const void *b){
+	Ip* ptr_b = (Ip*) b;
+	return strcmp((const char *) a, ptr_b->pk);
+	//return ptr_a - ptr_b;
+}
 
 void key_gen(Produto *new){
 	char *pk;
