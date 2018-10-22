@@ -156,7 +156,11 @@ int recuperar_rrn(Ip* iprimary, const char* pk, int nregistros);
 
 int cmpr_bypk(const void *a, const void *b);
 
+int cmpr_string(const void *a, const void *b);
 
+int search_bypk(Ip* iprimary, int nregistros);
+
+void printall_primary(Ip* iprimary, int nregistros);
 
 /* ==========================================================================
  * ============================ FUNÇÃO PRINCIPAL ============================
@@ -207,8 +211,8 @@ int main(){
 				// }
 				// else 
 				if(read_product(new_product, iprimary, nregistros)){
-					nregistros++;
 					insert_indexes(new_product, nregistros, iprimary, icategory, iproduct, ibrand, iprice);
+					nregistros++;
 				}
 				free(new_product);
 
@@ -236,10 +240,55 @@ int main(){
 			case 4:
 				/*busca*/
 				printf(INICIO_BUSCA );
+				scanf("%d%*c", &opcao);
+				
+				switch(opcao){
+					//1 - codigo
+					//2 - nome do produto
+					//3 - marca + categoria
+					case 1:
+						search_bypk(iprimary, nregistros);
+						
+						break;
+					case 2:
+
+						break;
+					case 3:
+
+						break;
+					default:
+
+						break;
+
+				}
+
 			break;
 			case 5:
 				/*listagens*/
 				printf(INICIO_LISTAGEM);
+				scanf("%d%*c", &opcao);
+				
+				switch(opcao){
+					//1 - codigo
+					//2 - categoria
+					//3 - marca
+					//4 - preco c/ desc
+
+					case 1:
+						printall_primary(iprimary, nregistros);						
+						break;
+					case 2:
+
+						break;
+					case 3:
+
+						break;
+					default:
+
+						break;
+
+				}
+
 			break;
 			case 6:
 				/*libera espaço*/
@@ -340,8 +389,7 @@ Produto recuperar_registro(int rrn)
 	strcpy(j.desconto,p);
 	p = strtok(NULL,"@");
 	strcpy(j.categoria,p);
-	//remover comentário abaixo
-	//gerarChave(&j);
+	key_gen(&j);
 	return j;
 }
 
@@ -424,28 +472,30 @@ void insert_iprimary(Ip *indice_primario, Produto* novo, int nregistros){
 	// } Ip;
 
 	//ajusta o ponteiro para a posição vazia do indice
-	Ip* eof = indice_primario + (nregistros-1);
+	Ip* eof = indice_primario + (nregistros);
 
 	strncpy(eof->pk, novo->pk, strlen(novo->pk));
 	eof->rrn = nregistros;
-	sort_iprimary(indice_primario, nregistros);
+	sort_iprimary(indice_primario, nregistros+1);
 }
 
 
 /*organiza indice primario*/
 void sort_iprimary(Ip* indice_primario, int nregistros){
-	//quicksort?
-	int c, d;
-	Ip swap;
-	for (c = 0 ; c < ( nregistros - 1 ); c++){
-	    for (d = 0 ; d < nregistros - c - 1; d++){
-			if (strcmp((indice_primario+d)->pk,(indice_primario+d+1)->pk) > 0 ){
-			swap = *(indice_primario+d);
-				*(indice_primario+d) = *(indice_primario+d+1);
-			*(indice_primario+d+1) = swap;
-			}
-	    }
-  	}
+	//void qsort(void *base, size_t nel, size_t width, int (*compar)(const void *, const void *));
+	qsort(indice_primario, nregistros, sizeof(Ip), cmpr_bypk);
+
+	// int c, d;
+	// Ip swap;
+	// for (c = 0 ; c < ( nregistros - 1 ); c++){
+	//     for (d = 0 ; d < nregistros - c - 1; d++){
+	// 		if (strcmp((indice_primario+d)->pk,(indice_primario+d+1)->pk) > 0 ){
+	// 		swap = *(indice_primario+d);
+	// 			*(indice_primario+d) = *(indice_primario+d+1);
+	// 		*(indice_primario+d) = swap;
+	// 		}
+	//     }
+ //  	}
 }
 
 void set_icategory(Ir *icategory, int nregistros){
@@ -475,25 +525,27 @@ void set_iproduct(Is *iproduct, int nregistros){
 /*Insere ao final do indice secundario*/
 void insert_iproduct(Is  *iproduct, Produto *novo, int nregistros){
 	int i;
-	Is* eof = iproduct + (nregistros-1);
+	Is* eof = iproduct + nregistros;
 	strncpy(eof->pk, novo->pk, strlen(novo->pk));
 	strncpy(eof->string, novo->nome, strlen(novo->nome));
-	sort_iproduct(iproduct, nregistros);
+	sort_iproduct(iproduct, nregistros+1); //risky +1
 }
  
 void sort_iproduct(Is* iproduct, int nregistros){
 	//quicksort 
-	int c, d;
-	Is swap;
-	for (c = 0 ; c < ( nregistros - 1 ); c++){
-	    for (d = 0 ; d < nregistros - c - 1; d++){
-			if (strcmp((iproduct+d)->string ,(iproduct+d+1)->string) > 0 ){
-				swap = *(iproduct+d);
-				*(iproduct+d) = *(iproduct+d+1);
-				*(iproduct+d+1) = swap;
-			}
-	    }
-  	}
+	qsort(iproduct, nregistros, sizeof(Is), cmpr_bypk);
+
+// int c, d;
+// 	Is swap;
+// 	for (c = 0 ; c < ( nregistros - 1 ); c++){
+// 	    for (d = 0 ; d < nregistros - c - 1; d++){
+// 			if (strcmp((iproduct+d)->string ,(iproduct+d+1)->string) > 0 ){
+// 				swap = *(iproduct+d);
+// 				*(iproduct+d) = *(iproduct+d+1);
+// 				*(iproduct+d+1) = swap;
+// 			}
+// 	    }
+//   	}
 }
 
 void set_ibrand(Is *ibrand, int nregistros){
@@ -520,6 +572,17 @@ void imprimirDados(int nregistros){
 	else{
 		printf(INICIO_ARQUIVO);
 		printf("%s\n", ARQUIVO);	
+	}
+}
+
+void printall_primary(Ip* iprimary, int nregistros){
+	for(int i =0; i < nregistros; i++){
+		//printf("nrrn %d\n", (iprimary+i)->rrn);
+		exibir_registro((iprimary+i)->rrn, 0);
+		
+		if(i != nregistros-1){
+			printf("\n");
+		}
 	}
 }
 
@@ -561,15 +624,41 @@ int read_product(Produto* new_product, Ip* indice_primario, int nregistros){
 	rtn = append_file(new_product);
 	return rtn;
 
-}
+} 
 
 // ############################### CONTROLS ##################################	
 
-/*função padrão alterada para comparar no bsearch*/
+/*receives pk from user and exibits messeges*/
+int search_bypk(Ip* iprimary, int nregistros){
+	char pk[TAM_PRIMARY_KEY];
+	int rrn = NULL_RRN;
+
+	scanf("%[^\n]\n", pk);
+	rrn = recuperar_rrn(iprimary, pk, nregistros);	
+	if(rrn == NULL_RRN){
+		printf(REGISTRO_N_ENCONTRADO);
+		return 0;
+	}
+
+	return exibir_registro(rrn, 0);
+
+}
+
+
+/*função padrão alterada para comparar no bsearch e qsort*/
 int cmpr_bypk(const void *a, const void *b){
 	Ip* ptr_b = (Ip*) b;
 	return strcmp((const char *) a, ptr_b->pk);
 	//return ptr_a - ptr_b;
+}
+
+/*função de comparação entre nome de jogo p/ bsearch e qsort*/
+int cmpr_string(const void *a, const void *b){
+	Is* ptr_b = (Is*) b;
+
+	return strcmp((const char *) a, ptr_b->string);
+
+	
 }
 
 void key_gen(Produto *new){
