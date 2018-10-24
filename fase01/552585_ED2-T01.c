@@ -142,6 +142,10 @@ void sort_iproduct(Is* iproduct, int nregistros);
 
 void set_ibrand(Is *ibrand, int nregistros);
 
+void insert_ibrand(Is  *ibrand, Produto *novo, int nregistros);
+
+void sort_ibrand(Is* ibrand, int nregistros);
+
 void set_iprice(Isf *iprice, int nregistros);
 
 void imprimirDados(int nregistros);
@@ -158,9 +162,18 @@ int cmpr_bypk(const void *a, const void *b);
 
 int cmpr_string(const void *a, const void *b);
 
+int cmpr_input_bypk(const void *a, const void *b);
+
+int cmpr_input_string(const void *a, const void *b);
+
 int search_bypk(Ip* iprimary, int nregistros);
 
+int search_byname(Ip* iprimary, Is* iproduct, int nregistros);
+
+void printall_brand(Ip* iprimary, Is* ibrand, int nregistros);
+
 void printall_primary(Ip* iprimary, int nregistros);
+
 
 /* ==========================================================================
  * ============================ FUNÇÃO PRINCIPAL ============================
@@ -251,7 +264,7 @@ int main(){
 						
 						break;
 					case 2:
-
+						search_byname(iprimary, iproduct, nregistros);
 						break;
 					case 3:
 
@@ -281,6 +294,9 @@ int main(){
 
 						break;
 					case 3:
+						printall_brand(iprimary, ibrand, nregistros);
+						break;
+					case 4:
 
 						break;
 					default:
@@ -444,6 +460,7 @@ void insert_indexes(Produto *new_product, int nregistros, Ip *indice_primario, I
 	//Controla inserção em todos arquivos de índice
 	insert_iprimary(indice_primario, new_product, nregistros);
 	insert_iproduct(iproduct, new_product, nregistros);
+	insert_ibrand(ibrand, new_product, nregistros);
 }
 
 void criar_iprimary(Ip *indice_primario, int* nregistros){
@@ -549,7 +566,38 @@ void sort_iproduct(Is* iproduct, int nregistros){
 }
 
 void set_ibrand(Is *ibrand, int nregistros){
+	int i, j;
+	Is *atual = ibrand;
+
+	if(!nregistros){
+		//rotina de inicialização
+		for( i = 0; i < MAX_REGISTROS; i++){
+			//limpa PK
+			for(j = 0; j < TAM_PRIMARY_KEY; j++)
+				*((atual+i)->pk + j) = '\0';
+			//limpa string
+			for(j = 0; j < TAM_NOME; j++)
+				*((atual+i)->string + j) = '\0'; 
+		}
+	} else {
+		//rbuild from file
+	}
 	return;
+}
+
+/*Insere ao final do indice secundario*/
+void insert_ibrand(Is  *ibrand, Produto *novo, int nregistros){
+	int i;
+	Is* eof = ibrand + nregistros;
+	strncpy(eof->pk, novo->pk, strlen(novo->pk));
+	strncpy(eof->string, novo->marca, strlen(novo->marca));
+	sort_ibrand(ibrand, nregistros+1); //risky +1
+}
+
+void sort_ibrand(Is* ibrand, int nregistros){
+	//quicksort 
+	qsort(ibrand, nregistros, sizeof(Is), cmpr_string);
+
 }
 
 void set_iprice(Isf *iprice, int nregistros){
@@ -559,7 +607,7 @@ void set_iprice(Isf *iprice, int nregistros){
 /*Dada uma certa chave, retorna o rrn dela consultando o ip*/
 int recuperar_rrn(Ip* iprimary, const char* pk, int nregistros){
 	Ip* idx_encontrado;
-	idx_encontrado = bsearch(pk, iprimary, nregistros, sizeof(Ip), cmpr_bypk);
+	idx_encontrado = bsearch(pk, iprimary, nregistros, sizeof(Ip), cmpr_input_bypk);
 	if(idx_encontrado == NULL)
 		return NULL_RRN;
 	return idx_encontrado->rrn;
@@ -579,6 +627,17 @@ void printall_primary(Ip* iprimary, int nregistros){
 	for(int i =0; i < nregistros; i++){
 		//printf("nrrn %d\n", (iprimary+i)->rrn);
 		exibir_registro((iprimary+i)->rrn, 0);
+		
+		if(i != nregistros-1){
+			printf("\n");
+		}
+	}
+}
+
+void printall_brand(Ip* iprimary, Is* ibrand, int nregistros){
+	for(int i =0; i < nregistros; i++){
+		//printf("nrrn %d\n", (iprimary+i)->rrn);
+		exibir_registro(recuperar_rrn(iprimary, (ibrand+i)->pk, nregistros), 0);
 		
 		if(i != nregistros-1){
 			printf("\n");
@@ -627,6 +686,39 @@ int read_product(Produto* new_product, Ip* indice_primario, int nregistros){
 } 
 
 // ############################### CONTROLS ##################################	
+/*usa bsearch para encontrar nome do produto correspondente*/
+int search_byname(Ip* iprimary, Is* iproduct, int nregistros){
+	char name[TAM_NOME];
+	Is* idx;
+	int i = 0;
+
+	scanf("%[^\n]\n", name);
+	idx = bsearch(name, iproduct, nregistros, sizeof(Is), cmpr_input_string );
+	if (idx == NULL)
+	{
+		printf(REGISTRO_N_ENCONTRADO);
+		return 0;
+	}
+
+	//must rewind for first name ocurrence, since there are repeated names
+	while((idx-1) != NULL && strcmp ((idx-1)->string, name) == 0)
+		idx--;
+
+	while(strcmp ((idx+i)->string, name) == 0){
+		//certainly the record exists, so its only needed to retrieve the RRN by
+		//ths secondary index PK
+		exibir_registro(recuperar_rrn(iprimary, (idx+i)->pk, nregistros), 0);
+		if (strcmp ((idx+i+1)->string, name) == 0)
+		{
+			printf("\n");
+		}
+		i++;
+	}
+	return 1;
+
+}
+
+
 
 /*receives pk from user and exibits messeges*/
 int search_bypk(Ip* iprimary, int nregistros){
@@ -645,22 +737,51 @@ int search_bypk(Ip* iprimary, int nregistros){
 }
 
 
-/*função padrão alterada para comparar no bsearch e qsort*/
+/*função padrão alterada para comparar no qsort*/
 int cmpr_bypk(const void *a, const void *b){
 	Ip* ptr_b = (Ip*) b;
-	return strcmp((const char *) a, ptr_b->pk);
-	//return ptr_a - ptr_b;
+	Is* ptr_a = (Is*) a;
+	return strcmp(ptr_a->pk, ptr_b->pk);
 }
 
-/*função de comparação entre nome de jogo p/ bsearch e qsort*/
-int cmpr_string(const void *a, const void *b){
-	Is* ptr_b = (Is*) b;
+/*função padrão alterada para comparar no bsearch*/
+int cmpr_input_bypk(const void *a, const void *b){
+	Ip* ptr_b = (Ip*) b;
+	return strcmp((const char *) a , ptr_b->pk);
+}
 
-	return strcmp((const char *) a, ptr_b->string);
+/*função de comparação entre nome de produto p/  e qsort*/
+int cmpr_string(const void *a, const void *b){
+	Is* ptr_a = (Is*) a;
+	Is* ptr_b = (Is*) b;
+	int unequal;
+
+	unequal = strcmp(ptr_a->string, ptr_b->string);
+	if (!unequal)
+	{
+
+		//tiebreaker criteria
+		//pk is never equal
+		unequal = cmpr_bypk(a, b);
+	}
+
+	return unequal;
 
 	
 }
 
+/*função de comparação entre nome de produto p/ bsearch e qsort*/
+int cmpr_input_string(const void *a, const void *b){
+	Is* ptr_b = (Is*) b;
+	//int unequal;
+
+	return strcmp((const char*) a, ptr_b->string);
+	// if (!unequal)
+	// 	unequal = -1;
+
+	// return unequal;
+	
+}
 void key_gen(Produto *new){
 	char *pk;
 	pk = (char *) malloc(TAM_PRIMARY_KEY * sizeof(char));
