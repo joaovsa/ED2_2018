@@ -126,13 +126,25 @@ void ler_entrada(char* registro, Produto *novo);
 void imprimirSecundario(Is* iproduct, Is* ibrand, Ir* icategory, Isf *iprice, int nregistros, int ncat);
 
 // ############################## ADDED ##################################
-void insert_indexes(Produto *new_product, int nregistros, Ip *indice_primario, Ir *icategory, Is *iproduct, Is *ibrand, Isf *iprice);
+void insert_indexes(Produto *new_product, int nregistros, int* ncat, Ip *indice_primario, Ir *icategory, Is *iproduct, Is *ibrand, Isf *iprice);
 
 void insert_iprimary(Ip *indice_primario, Produto* novo, int nregistros);
 
 void sort_iprimary(Ip* indice_primario, int nregistros);
 
-void set_icategory(Ir *icategory, int nregistros);
+void set_icategory(Ir *icategory, int nregistros, int *ncat);
+
+void insert_icategory(Ir *icategory, Produto* novo, int* ncat);
+
+void sort_icategory(Ir* icategory, int ncat);
+
+Ir* has_category(Ir* icategory, const char* category, int ncat);
+
+void ll_append_ordered(Ir* curr_cat, const char* pk);
+
+int cmpr_input_bycategory(const void* a, const void* b);
+
+int cmpr_bycategory(const void* a, const void* b);
 
 void set_iproduct(Is *iproduct, int nregistros);
 
@@ -174,7 +186,6 @@ void printall_brand(Ip* iprimary, Is* ibrand, int nregistros);
 
 void printall_primary(Ip* iprimary, int nregistros);
 
-
 /* ==========================================================================
  * ============================ FUNÇÃO PRINCIPAL ============================
  * =============================== NÃO ALTERAR ============================== */
@@ -201,13 +212,13 @@ int main(){
 	Is *ibrand = (Is *) malloc(MAX_REGISTROS * sizeof(Is)); 
 	Isf *iprice = (Isf *) malloc(MAX_REGISTROS * sizeof(Isf));
 	//setar lista ligada
-	Ir *icategory = (Ir *) malloc(sizeof(Ir));;
+	Ir *icategory = (Ir *) malloc(MAX_CATEGORIAS * sizeof(Ir));
 
 	//provavelmente mais um parametro sera adicionado: nregistros
 	set_iproduct(iproduct, nregistros);
 	set_ibrand(ibrand, nregistros);
 	set_iprice(iprice, nregistros);
-	set_icategory(icategory, nregistros);
+	set_icategory(icategory, nregistros, &ncat);
 
 	/* Execução do programa */
 	int opcao = 0;
@@ -224,7 +235,7 @@ int main(){
 				// }
 				// else 
 				if(read_product(new_product, iprimary, nregistros)){
-					insert_indexes(new_product, nregistros, iprimary, icategory, iproduct, ibrand, iprice);
+					insert_indexes(new_product, nregistros, &ncat, iprimary, icategory, iproduct, ibrand, iprice);
 					nregistros++;
 				}
 				free(new_product);
@@ -456,11 +467,12 @@ void imprimirSecundario(Is* iproduct, Is* ibrand, Ir* icategory, Isf *iprice, in
 
 // ############################## ÍNDICES ##################################	
 
-void insert_indexes(Produto *new_product, int nregistros, Ip *indice_primario, Ir *icategory, Is *iproduct, Is *ibrand, Isf *iprice){
+void insert_indexes(Produto *new_product, int nregistros, int* ncat, Ip *indice_primario, Ir *icategory, Is *iproduct, Is *ibrand, Isf *iprice){
 	//Controla inserção em todos arquivos de índice
 	insert_iprimary(indice_primario, new_product, nregistros);
 	insert_iproduct(iproduct, new_product, nregistros);
 	insert_ibrand(ibrand, new_product, nregistros);
+	insert_icategory(icategory, new_product, ncat);
 }
 
 void criar_iprimary(Ip *indice_primario, int* nregistros){
@@ -515,8 +527,71 @@ void sort_iprimary(Ip* indice_primario, int nregistros){
  //  	}
 }
 
-void set_icategory(Ir *icategory, int nregistros){
-	return;
+void set_icategory(Ir *icategory, int nregistros, int *ncat){
+	/* Struct para lista invertida */
+	// typedef struct reverse_index{
+	//   char cat[TAM_CATEGORIA];
+	//   ll* lista;
+	// } Ir;
+
+	Ir *atual = icategory;
+
+	if(!nregistros){
+		*ncat = 0;
+		//rotina de inicialização
+		for(int i = 0; i < MAX_CATEGORIAS; i++){
+			//limpa categoria
+			for(int j = 0; j < TAM_CATEGORIA; j++)
+				*((atual+i)->cat + j) = '\0';
+			//limpa string
+			(atual+i)->lista = NULL;
+		}
+	} else {
+		//populate by FILE
+	}
+}
+
+void insert_icategory(Ir *icategory, Produto* novo, int* ncat){
+	//insert new category if doesnt exists
+
+	/*	
+		pos = search
+		if(search == null){
+			insert
+			sort
+			pos = search
+		}
+		append(pos)
+	*/	
+
+	Ir* pos;
+	char* cat; /*purr*/
+	cat = strtok (novo->categoria, "|");
+	while(cat != NULL){
+		pos = has_category(icategory, cat, *ncat);
+		if(pos == NULL){
+	 		//maximum category reached
+		 	if(*ncat == MAX_CATEGORIAS)
+			 	return;
+			//otherwise insert
+			strncpy((icategory+*ncat)->cat, cat, strlen(cat));
+			*ncat = *ncat + 1;
+			sort_icategory(icategory, *ncat);
+			pos = has_category(icategory, cat, *ncat);
+
+
+		}
+		//append linked list on "pos"
+		ll_append_ordered(pos, novo->pk);
+		//tries to retrieve more categories	from strtok buffer
+		cat = strtok (NULL, "|");
+	}
+}	
+
+/*qsorts category array*/
+void sort_icategory(Ir* icategory, int ncat){
+	//quicksort 
+	qsort(icategory, ncat, sizeof(Ir), cmpr_bycategory);
 }
 
 void set_iproduct(Is *iproduct, int nregistros){
@@ -539,6 +614,7 @@ void set_iproduct(Is *iproduct, int nregistros){
 	return;
 }
 
+
 /*Insere ao final do indice secundario*/
 void insert_iproduct(Is  *iproduct, Produto *novo, int nregistros){
 	int i;
@@ -551,18 +627,6 @@ void insert_iproduct(Is  *iproduct, Produto *novo, int nregistros){
 void sort_iproduct(Is* iproduct, int nregistros){
 	//quicksort 
 	qsort(iproduct, nregistros, sizeof(Is), cmpr_bypk);
-
-// int c, d;
-// 	Is swap;
-// 	for (c = 0 ; c < ( nregistros - 1 ); c++){
-// 	    for (d = 0 ; d < nregistros - c - 1; d++){
-// 			if (strcmp((iproduct+d)->string ,(iproduct+d+1)->string) > 0 ){
-// 				swap = *(iproduct+d);
-// 				*(iproduct+d) = *(iproduct+d+1);
-// 				*(iproduct+d+1) = swap;
-// 			}
-// 	    }
-//   	}
 }
 
 void set_ibrand(Is *ibrand, int nregistros){
@@ -686,6 +750,43 @@ int read_product(Produto* new_product, Ip* indice_primario, int nregistros){
 } 
 
 // ############################### CONTROLS ##################################	
+
+void ll_append_ordered(Ir* curr_cat, const char* pk){
+	/*
+			typedef struct linked_list{
+		  char pk[TAM_PRIMARY_KEY];
+		  struct linked_list *prox;
+		} ll;
+	*/
+	ll *curr_node, *new;
+
+	//instance of ll
+	new = (ll*) malloc(sizeof(ll));
+	strncpy(new->pk, pk, strlen(pk));
+	new->prox = NULL;
+
+	//if empty inserts OR inserts on first pos if less
+	//<does not bug when NULL->pk since if NULL, just accepts the 1st condition
+	if(curr_cat->lista == NULL || strcmp((curr_cat->lista)->pk, pk) > 0){
+			new->prox = curr_cat->lista;
+			curr_cat->lista = new;	
+	} else {
+		curr_node = curr_cat->lista;
+		while(curr_node->prox != NULL && 
+			strcmp((curr_node->prox)->pk, pk) < 0){
+			curr_node = curr_node->prox;
+		}
+		//inserrts after
+		new->prox = curr_node->prox;
+		curr_node->prox = new;
+	}
+}
+
+Ir* has_category(Ir* icategory, const char* category, int ncat){
+
+	return bsearch(category, icategory, ncat, sizeof(Ir), cmpr_input_bycategory);	
+}
+
 /*usa bsearch para encontrar nome do produto correspondente*/
 int search_byname(Ip* iprimary, Is* iproduct, int nregistros){
 	char name[TAM_NOME];
@@ -717,7 +818,6 @@ int search_byname(Ip* iprimary, Is* iproduct, int nregistros){
 	return 1;
 
 }
-
 
 
 /*receives pk from user and exibits messeges*/
@@ -765,9 +865,7 @@ int cmpr_string(const void *a, const void *b){
 		unequal = cmpr_bypk(a, b);
 	}
 
-	return unequal;
-
-	
+	return unequal;	
 }
 
 /*função de comparação entre nome de produto p/ bsearch e qsort*/
@@ -779,9 +877,29 @@ int cmpr_input_string(const void *a, const void *b){
 	// if (!unequal)
 	// 	unequal = -1;
 
-	// return unequal;
-	
+	// return unequal;	
 }
+
+/*função de comparação entre nome de categoria p/ bsearch*/
+
+int cmpr_input_bycategory(const void* a, const void* b){
+	Ir* idx = (Ir*) b;
+
+	//can be used in qsort since no repeated category is allowed
+	return strcmp((const char*) a, idx->cat);
+}
+
+
+/*função de comparação entre nome de categoria p/ qsort*/
+int cmpr_bycategory(const void* a, const void* b){
+	Ir* idxb = (Ir*) b;
+	Ir* idxa = (Ir*) a;
+	//can be used in qsort since no repeated category is allowed
+	return strcmp(idxa->cat, idxb->cat);
+}
+
+
+
 void key_gen(Produto *new){
 	char *pk;
 	pk = (char *) malloc(TAM_PRIMARY_KEY * sizeof(char));
